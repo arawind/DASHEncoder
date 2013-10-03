@@ -80,7 +80,6 @@ std::string     MP4BoxMultiplexer::multiplex                  (){
    std::cout << "mp4box: " <<mp4box << "\n";
    system(mp4box.c_str());
 
-
     std::cout << "MP4Box segmentation: " << this->input << " \n";
 
     mp4box = "MP4Box ";
@@ -103,12 +102,27 @@ std::string     MP4BoxMultiplexer::multiplex                  (){
 
     mp4box.append(this->input.substr(0,this->input.find_last_of(".")));
     mp4box.append(".mp4");
+    mp4box.append(" ");
+
+    //mp4box.append("-out ");
+    //std::string mpd = this->input.substr(this->input.find_last_of("/")+1);
+    //mp4box.append(mpd.substr(0, mpd.find_last_of(".")));//, this->input.find_last_of(".")));
+    //mp4box.append(this->input.substr(0,this->input.find_last_of(".")));
+    //mp4box.append("_dash.mpd");
 
     std::cout << "mp4box: " <<mp4box << "\n";
     system(mp4box.c_str());
 
+    std::string moveMPD ="mv " + this->input.substr(this->input.find_last_of("/")+1);
+    moveMPD = moveMPD.substr(0,moveMPD.find_last_of("."));
+    moveMPD.append("_dash.mpd");
     std::string mpd = this->input.substr(0,this->input.find_last_of("."));
     mpd.append("_dash.mpd");
+    moveMPD.append(" ");
+    moveMPD.append(mpd);
+    std::cout << "\nMove mpd from current directory: " << moveMPD << "\n" ;
+    system(moveMPD.c_str());
+
     return mpd;
 }
 

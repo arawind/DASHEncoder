@@ -53,9 +53,10 @@ void parse(int argc, char* argv[])
     std::cout << "current encoder " << opt->getValue("video-encoder") << "\n";
     if(getEncoder(opt->getValue("video-encoder")) == IEncoder::x264)
         std::cout << "YES\n";
-
     AbstractVideoEncoder* e = (AbstractVideoEncoder*)encoder_factory->getEncoder(opt, getEncoder(opt->getValue("video-encoder")));
     AbstractAudioEncoder* a = (AbstractAudioEncoder*)encoder_factory->getEncoder(opt, getEncoder(opt->getValue("audio-encoder")));
+
+
 
     MPDGenerator* mpdgen = new MPDGenerator();
     MPDGenerator* mpdgenNonSeg = new MPDGenerator();
@@ -63,6 +64,7 @@ void parse(int argc, char* argv[])
 
     std::map<int, std::string> audio_files;
     std::map<int, int> av_mux_mapping;
+
 
     /* MySQL Support Disabled
 
@@ -149,6 +151,7 @@ void parse(int argc, char* argv[])
     }
 
     /************************ AUDIO PROCESSING ******************************/
+
     std::string audio_quality = opt->getValue("audio-quality");
     char*c2 = (char*) malloc(audio_quality.length() * sizeof(char));
     strcpy(c2, audio_quality.c_str());
@@ -158,9 +161,10 @@ void parse(int argc, char* argv[])
     std::string act_audio_encoding;
     std::string act_audio_seg;
 
+    std::cout << "\nAAAAA" << h264file << "AAAAAAAA" << std::endl;
+
     while (act_audio != NULL)
     {
-
         act_quality = act_audio;
         a->setChannels(atoi(act_quality.substr(0, act_quality.find(',')).c_str()));
 
@@ -313,7 +317,7 @@ void parse(int argc, char* argv[])
             folder.append(foldername);
             folder.append("/");
             folder.append(audio_files[av_mux_mapping[e->getBitrate()]]);
-            std::cout << "copy audio: " << folder;
+            std::cout << "copy audio: " << folder << std::endl;
             system(folder.c_str());
         }
 
@@ -404,6 +408,7 @@ void parse(int argc, char* argv[])
             af.append(audio_files[av_mux_mapping[e->getBitrate()]]);
 
             m->setAudioFile(af);
+
         }
 
         std::string mpd = m->multiplex(h264new);
@@ -438,15 +443,32 @@ void parse(int argc, char* argv[])
 
         act_rep = act_rep.substr(act_rep.find("<Representation"), act_rep.find("</Representation>") - act_rep.find("<Representation") + 17);
 
-
+        std::string temp2 = "", temp3="";
+        int lpos=0;
+        temp2 = "<Initialization sourceURL=\"";
+        temp3 = temp2;
+        temp3.append(foldername);
+        temp3.append("/");
+        act_rep.replace(act_rep.find(temp2), temp2.length(), temp3);
+        temp2 = "<SegmentURL media=\"";
+        temp3 = temp2;
+        temp3.append(foldername);
+        temp3.append("/");
+        while(act_rep.find(temp2, lpos) != std::string::npos){
+        	act_rep.replace(act_rep.find(temp2,lpos), temp2.length(), temp3);
+        	lpos = act_rep.find(temp2, lpos) + 1;
+        }
 
         if(opt->getFlag("add-non-segmented")){
             /************ GENERATE UNSEGMENTED FILE *****/
             std::string tmp_rep = act_rep;
             tmp_rep = m->unSegment(tmp_rep);
 
+            std::cout << "error in here\n";
+
             while (tmp_rep.find(m->getOutputDir()) != std::string::npos)
             {
+
                 if(opt->getFlag("set-base-url"))
                     tmp_rep.replace(tmp_rep.find(m->getOutputDir()), m->getOutputDir().size(), "");
                 else
@@ -696,7 +718,6 @@ int convertMPD(std::string input, std::string output, std::string duration, std:
     finalMPDhead.append("          <AdaptationSet bitstreamSwitching=\"true\" >\n");
     mpdexportfile << finalMPDhead;
 
-
     finalMPDfoot.append("          </AdaptationSet>\n");
     finalMPDfoot.append("    </Period>\n");
     finalMPDfoot.append("</MPD>\n");
@@ -709,7 +730,9 @@ int convertMPD(std::string input, std::string output, std::string duration, std:
 
 
     while(mpd_temp.find("<Representation", lastRep)!= std::string::npos){
-            act_rep = mpd_temp.substr(mpd_temp.find("<Representation", lastRep), mpd_temp.find("</Representation>", lastRep)+ 17 - mpd_temp.find("<Representation", lastRep) );
+    		int lpos = 0;
+    		string temp3 = "";
+    		act_rep = mpd_temp.substr(mpd_temp.find("<Representation", lastRep), mpd_temp.find("</Representation>", lastRep)+ 17 - mpd_temp.find("<Representation", lastRep) );
             lastRep = mpd_temp.find("</Representation>", lastRep)+ 17;
 
             finalRep = "";
@@ -718,13 +741,22 @@ int convertMPD(std::string input, std::string output, std::string duration, std:
             addID.append(DASHHelper::itos(id));
             addID.append("\"");
 
-            temp2 = "<Representation";
-            act_rep.replace(act_rep.find(temp2), temp2.length(),addID);
-            temp2 = "startWithRAP=\"true\"";
+            temp2 = "<Representation id=\"";
+            lpos = act_rep.find(temp2);
+
+            act_rep.replace(lpos, act_rep.find("\"", lpos + temp2.length()) - lpos +1, addID);
+            temp2 = "startWithSAP=\"1\"";//temp2 = "startWithRAP=\"true\"";
             act_rep.replace(act_rep.find(temp2), temp2.length(),"startWithSAP=\"1\"");
 
-            temp2 = "mimeType=\"video/mp4\"";
-            act_rep.replace(act_rep.find(temp2), temp2.length(),"codecs=\"avc1\" mimeType=\"video/mp4\"");
+            //temp2 = "mimeType=\"video/mp4\"";
+            //act_rep.replace(act_rep.find(temp2), temp2.length(),"codecs=\"avc1\" mimeType=\"video/mp4\"");
+
+            temp2 = "codecs=\"";
+            lpos = act_rep.find(temp2);
+            std::cout << lpos << std::endl;
+            act_rep.replace(lpos, act_rep.find("\"", lpos + temp2.length()) - lpos +1, "codecs=\"avc1\"");
+            std::cout << act_rep << std::endl;
+            //act_rep.replace(act_rep.find(temp2), temp2.length(),"codecs=\"avc1\" mimeType=\"video/mp4\"");
 
             temp = act_rep.substr(0, act_rep.find(">"));
             temp.append(">\n");
@@ -732,29 +764,39 @@ int convertMPD(std::string input, std::string output, std::string duration, std:
 
 
             //add init segment
-            pos = act_rep.find("<InitialisationSegmentURL");
+            //pos = act_rep.find("<InitialisationSegmentURL");
+            pos = act_rep.find("<Initialization");
+            //std::cout << act_rep << std::endl;
+            //std::cout << pos << std::endl;
             temp = act_rep.substr(pos,act_rep.find("/>", pos)+2 - pos);
-            temp2 = "InitialisationSegmentURL";
-            temp.replace(temp.find(temp2), temp2.length(), "Initialisation");
+            /*temp2 = "InitialisationSegmentURL";
+            temp.replace(temp.find(temp2), temp2.length(), "Initialisation");*/
             pos = act_rep.find("/>", pos)+2;
 
             finalRep.append("<SegmentBase>\n    ");
             finalRep.append(temp);
             finalRep.append("\n</SegmentBase>\n");
-
+//TILL HERE
             //add segments
             finalRep.append("<SegmentList duration=\"");
             finalRep.append(segduration);
             finalRep.append("\">");
-            temp = act_rep.substr(pos, act_rep.find("</SegmentInfo>",pos) -pos);
-            temp2 = "<Url";
-            while(temp.find(temp2)!= std::string::npos){
+
+            temp = act_rep.substr(pos, act_rep.find("</SegmentList>",pos) -pos);
+            //temp = act_rep.substr(pos, act_rep.find("</SegmentInfo>",pos) -pos);
+            temp2 = "<SegmentURL";
+            //temp2 = "<Url";
+            lpos = pos;
+            while(temp.find(temp2,lpos)!= std::string::npos){
                 temp.replace(temp.find(temp2), temp2.length(),"<SegmentURL");
-                string temp3 = "sourceURL";
+                //string temp3 = "sourceURL";
+                string temp3 = "media";
                 temp.replace(temp.find(temp3), temp3.length(),"media");
                 string temp4 = "range";
                 if(temp.find(temp4)!= std::string::npos)
                     temp.replace(temp.find(temp4), temp4.length(),"mediaRange");
+                //std::cout<< "done " << std::endl;
+                lpos = temp.find(temp2, lpos)+1;
             }
             finalRep.append(temp);
             finalRep.append("</SegmentList>\n");
